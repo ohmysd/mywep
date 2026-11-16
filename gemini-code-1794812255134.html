@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NEON VIPER | 아케이드 스네이크</title>
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 50% 0%, #172033 0%, #090d16 100%);
+      --glass-bg: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --neon-mint: #00f5a0;
+      --neon-cyan: #00d9f5;
+      --neon-coral: #ff3366;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100dvh;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 430px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* 상단 헤더 */
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 4px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand h1 {
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      background: linear-gradient(90deg, var(--neon-mint), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand span {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat-pill {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 6px 12px;
+      text-align: right;
+    }
+
+    .stat-pill .label {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .stat-pill .val {
+      font-size: 1rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+    }
+
+    .stat-pill.highlight .val {
+      color: var(--neon-mint);
+    }
+
+    /* 게임 보드 */
+    .board-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 380px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #070b14;
+      border: 1px solid rgba(0, 245, 160, 0.25);
+      box-shadow: 0 0 25px rgba(0, 245, 160, 0.08);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 오버레이 화면 */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 11, 20, 0.78);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 24px;
+      gap: 12px;
+      transition: opacity 0.2s ease;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .overlay h2 {
+      font-size: 1.65rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, var(--neon-mint), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .overlay.gameover h2 {
+      background: linear-gradient(90deg, #ff3366, #ff758c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .overlay p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* 컨트롤 버튼 바 */
+    .action-bar {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 11px 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, var(--neon-mint), var(--neon-cyan));
+      color: #050a14;
+      border: none;
+      box-shadow: 0 4px 15px rgba(0, 245, 160, 0.3);
+    }
+
+    .btn-play:hover:not(:disabled) {
+      filter: brightness(1.08);
+      background: linear-gradient(135deg, var(--neon-mint), var(--neon-cyan));
+    }
+
+    /* 터치 D-Pad */
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 62px);
+      grid-template-rows: repeat(2, 52px);
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .dpad button {
+      font-size: 1.15rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.65);
+      border-radius: 14px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .dpad button:active {
+      background: var(--neon-mint);
+      color: #050a14;
+      transform: scale(0.93);
+    }
+
+    .btn-up { grid-column: 2; grid-row: 1; }
+    .btn-left { grid-column: 1; grid-row: 2; }
+    .btn-down { grid-column: 2; grid-row: 2; }
+    .btn-right { grid-column: 3; grid-row: 2; }
+
+    .hint {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 380px) {
+      .app-shell { padding: 14px; gap: 10px; }
+      .dpad {
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: repeat(2, 46px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- 상단 타이틀 & 스코어 -->
+    <div class="header">
+      <div class="brand">
+        <h1>NEON VIPER</h1>
+        <span>20×20 ARCADE</span>
+      </div>
+      <div class="stats">
+        <div class="stat-pill highlight">
+          <span class="label">Score</span>
+          <span class="val" id="score">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="label">Best</span>
+          <span class="val" id="highScore">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 게임 캔버스 -->
+    <div class="board-container" id="boardContainer">
+      <canvas id="gameCanvas" width="400" height="400"></canvas>
+      <div id="overlay" class="overlay">
+        <h2 id="overlayTitle">NEON VIPER</h2>
+        <p id="overlayDesc">PLAY 버튼을 누르거나 방향키·스와이프로<br>네온 에너지를 수집하세요.</p>
+      </div>
+    </div>
+
+    <!-- 제어 버튼 -->
+    <div class="action-bar">
+      <button id="startBtn" class="btn-play">PLAY</button>
+      <button id="pauseBtn" disabled>PAUSE</button>
+      <button id="restartBtn">RESET</button>
+    </div>
+
+    <!-- 모바일 터치 컨트롤러 -->
+    <div class="dpad" aria-label="방향 패드">
+      <button class="btn-up" data-dir="UP" aria-label="위">▲</button>
+      <button class="btn-left" data-dir="LEFT" aria-label="왼쪽">◀</button>
+      <button class="btn-down" data-dir="DOWN" aria-label="아래">▼</button>
+      <button class="btn-right" data-dir="RIGHT" aria-label="오른쪽">▶</button>
+    </div>
+
+    <div class="hint">PC: 방향키 · 모바일: 터치 패드 또는 화면 스와이프</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const boardContainer = document.getElementById("boardContainer");
+
+    const scoreEl = document.getElementById("score");
+    const highScoreEl = document.getElementById("highScore");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayDesc = document.getElementById("overlayDesc");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const dirButtons = document.querySelectorAll(".dpad button");
+
+    const GRID_SIZE = 20;
+    const TILE_SIZE = canvas.width / GRID_SIZE;
+    const BASE_SPEED = 135;
+
+    let snake = [];
+    let food = { x: 15, y: 10 };
+    let particles = [];
+    let currentDir = { x: 1, y: 0 };
+    let inputQueue = [];
+    let score = 0;
+    let highScore = Number(localStorage.getItem("neonViperBest")) || 0;
+
+    let gameLoopId = null;
+    let animFrameId = null;
+    let isRunning = false;
+    let isPaused = false;
+    let isGameOver = false;
+    let pulsePhase = 0;
+
+    highScoreEl.textContent = highScore;
+
+    const DIRECTIONS = {
+      UP: { x: 0, y: -1 },
+      DOWN: { x: 0, y: 1 },
+      LEFT: { x: -1, y: 0 },
+      RIGHT: { x: 1, y: 0 }
+    };
+
+    function initGame() {
+      snake = [
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
+      ];
+      currentDir = { x: 1, y: 0 };
+      inputQueue = [];
+      particles = [];
+      score = 0;
+      isGameOver = false;
+      isPaused = false;
+      overlay.classList.remove("gameover");
+      updateScore();
+      spawnFood();
+    }
+
+    function spawnFood() {
+      const emptyCells = [];
+      for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          if (!snake.some(seg => seg.x === x && seg.y === y)) {
+            emptyCells.push({ x, y });
+          }
+        }
+      }
+      if (emptyCells.length > 0) {
+        food = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+      }
+    }
+
+    function createParticles(gridX, gridY) {
+      const cx = gridX * TILE_SIZE + TILE_SIZE / 2;
+      const cy = gridY * TILE_SIZE + TILE_SIZE / 2;
+      for (let i = 0; i < 14; i++) {
+        const angle = (Math.PI * 2 * i) / 14 + Math.random() * 0.4;
+        const speed = 1.5 + Math.random() * 2.5;
+        particles.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          alpha: 1,
+          size: 2 + Math.random() * 2.5
+        });
+      }
+    }
+
+    function updateScore() {
+      scoreEl.textContent = score;
+      if (score > highScore) {
+        highScore = score;
+        highScoreEl.textContent = highScore;
+        localStorage.setItem("neonViperBest", highScore);
+      }
+    }
+
+    function queueDirection(dirKey) {
+      const nextDir = DIRECTIONS[dirKey];
+      if (!nextDir) return;
+
+      if (!isRunning && !isGameOver) {
+        startGame();
+      }
+      if (!isRunning || isPaused || isGameOver) return;
+
+      const lastDir = inputQueue.length > 0 ? inputQueue[inputQueue.length - 1] : currentDir;
+      if (nextDir.x === lastDir.x && nextDir.y === lastDir.y) return;
+      if (nextDir.x + lastDir.x === 0 && nextDir.y + lastDir.y === 0) return;
+
+      if (inputQueue.length < 2) {
+        inputQueue.push(nextDir);
+      }
+    }
+
+    function getCurrentSpeed() {
+      // 점수가 오를수록 미세하게 빨라짐 (최소 75ms)
+      return Math.max(75, BASE_SPEED - Math.floor(score / 30) * 5);
+    }
+
+    function stepLogic() {
+      if (inputQueue.length > 0) {
+        currentDir = inputQueue.shift();
+      }
+
+      const head = {
+        x: snake[0].x + currentDir.x,
+        y: snake[0].y + currentDir.y
+      };
+
+      // 벽 충돌 검사
+      if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+        endGame();
+        return;
+      }
+
+      // 자기 몸 충돌 검사
+      const willEat = head.x === food.x && head.y === food.y;
+      const bodyToCheck = willEat ? snake : snake.slice(0, -1);
+      if (bodyToCheck.some(seg => seg.x === head.x && seg.y === head.y)) {
+        endGame();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (willEat) {
+        score += 10;
+        updateScore();
+        createParticles(food.x, food.y);
+        spawnFood();
+        // 속도 갱신
+        clearInterval(gameLoopId);
+        gameLoopId = setInterval(stepLogic, getCurrentSpeed());
+      } else {
+        snake.pop();
+      }
+    }
+
+    function renderLoop() {
+      pulsePhase += 0.08;
+
+      // 배경
+      ctx.fillStyle = "#070b14";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 미세한 도트 격자
+      ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+      for (let x = 1; x < GRID_SIZE; x++) {
+        for (let y = 1; y < GRID_SIZE; y++) {
+          ctx.fillRect(x * TILE_SIZE - 0.5, y * TILE_SIZE - 0.5, 1, 1);
+        }
+      }
+
+      // 먹이 (네온 코랄 펄스 효과)
+      const fx = food.x * TILE_SIZE + TILE_SIZE / 2;
+      const fy = food.y * TILE_SIZE + TILE_SIZE / 2;
+      const pulseRadius = TILE_SIZE * 0.34 + Math.sin(pulsePhase) * 1.5;
+
+      ctx.save();
+      ctx.shadowColor = "#ff3366";
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = "#ff3366";
+      ctx.beginPath();
+      ctx.arc(fx, fy, pulseRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(fx - 1.5, fy - 1.5, pulseRadius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 파티클 애니메이션
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.04;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.fillStyle = `rgba(255, 51, 102, ${p.alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 뱀 그리기 (머리에서 꼬리로 그라데이션)
+      snake.forEach((seg, idx) => {
+        const isHead = idx === 0;
+        const ratio = 1 - idx / (snake.length + 2);
+        const pad = isHead ? 1.2 : 2.2;
+
+        ctx.save();
+        if (isHead) {
+          ctx.shadowColor = "#00f5a0";
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = "#00f5a0";
+        } else {
+          ctx.fillStyle = `rgba(0, 217, 245, ${Math.max(0.28, ratio)})`;
+        }
+
+        ctx.fillRect(
+          seg.x * TILE_SIZE + pad,
+          seg.y * TILE_SIZE + pad,
+          TILE_SIZE - pad * 2,
+          TILE_SIZE - pad * 2
+        );
+
+        // 머리 눈 표현
+        if (isHead) {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = "#050a14";
+          const cx = seg.x * TILE_SIZE + TILE_SIZE / 2;
+          const cy = seg.y * TILE_SIZE + TILE_SIZE / 2;
+          let e1 = { x: cx + 3, y: cy - 4 };
+          let e2 = { x: cx + 3, y: cy + 4 };
+
+          if (currentDir.x === -1) {
+            e1 = { x: cx - 3, y: cy - 4 };
+            e2 = { x: cx - 3, y: cy + 4 };
+          } else if (currentDir.y === 1) {
+            e1 = { x: cx - 4, y: cy + 3 };
+            e2 = { x: cx + 4, y: cy + 3 };
+          } else if (currentDir.y === -1) {
+            e1 = { x: cx - 4, y: cy - 3 };
+            e2 = { x: cx + 4, y: cy - 3 };
+          }
+
+          ctx.beginPath();
+          ctx.arc(e1.x, e1.y, 2.2, 0, Math.PI * 2);
+          ctx.arc(e2.x, e2.y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      animFrameId = requestAnimationFrame(renderLoop);
+    }
+
+    function startGame() {
+      if (isGameOver) initGame();
+      if (isRunning && !isPaused) return;
+
+      isRunning = true;
+      isPaused = false;
+      overlay.classList.add("hidden");
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = "PAUSE";
+
+      clearInterval(gameLoopId);
+      gameLoopId = setInterval(stepLogic, getCurrentSpeed());
+    }
+
+    function togglePause() {
+      if (!isRunning || isGameOver) return;
+
+      if (!isPaused) {
+        isPaused = true;
+        clearInterval(gameLoopId);
+        overlayTitle.textContent = "PAUSED";
+        overlayDesc.textContent = "게임이 일시정지되었습니다.";
+        overlay.classList.remove("hidden");
+        pauseBtn.textContent = "RESUME";
+      } else {
+        isPaused = false;
+        overlay.classList.add("hidden");
+        pauseBtn.textContent = "PAUSE";
+        gameLoopId = setInterval(stepLogic, getCurrentSpeed());
+      }
+    }
+
+    function restartGame() {
+      clearInterval(gameLoopId);
+      initGame();
+      isRunning = false;
+      startGame();
+    }
+
+    function endGame() {
+      clearInterval(gameLoopId);
+      isRunning = false;
+      isGameOver = true;
+      overlay.classList.add("gameover");
+      overlayTitle.textContent = "GAME OVER";
+      overlayDesc.innerHTML = `최종 점수 <strong>${score}점</strong>을 달성했습니다.<br>RESET 버튼을 눌러 다시 도전하세요.`;
+      overlay.classList.remove("hidden");
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      pauseBtn.textContent = "PAUSE";
+    }
+
+    // 키보드 입력
+    window.addEventListener("keydown", (e) => {
+      const keyMap = {
+        ArrowUp: "UP",
+        ArrowDown: "DOWN",
+        ArrowLeft: "LEFT",
+        ArrowRight: "RIGHT"
+      };
+      if (keyMap[e.key]) {
+        e.preventDefault();
+        queueDirection(keyMap[e.key]);
+      } else if (e.key === " " && isRunning) {
+        e.preventDefault();
+        togglePause();
+      }
+    });
+
+    // 터치 패드 버튼
+    dirButtons.forEach((btn) => {
+      const trigger = (e) => {
+        e.preventDefault();
+        queueDirection(btn.getAttribute("data-dir"));
+      };
+      btn.addEventListener("touchstart", trigger, { passive: false });
+      btn.addEventListener("mousedown", trigger);
+    });
+
+    // 모바일 스와이프 제스처 지원
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    boardContainer.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    boardContainer.addEventListener("touchend", (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        queueDirection(dx > 0 ? "RIGHT" : "LEFT");
+      } else {
+        queueDirection(dy > 0 ? "DOWN" : "UP");
+      }
+    }, { passive: true });
+
+    startBtn.addEventListener("click", startGame);
+    pauseBtn.addEventListener("click", togglePause);
+    restartBtn.addEventListener("click", restartGame);
+
+    initGame();
+    renderLoop();
+  </script>
+</body>
+</html>
